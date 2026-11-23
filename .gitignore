@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+venv/
+.venv/
+
+# Model weights (downloaded automatically)
+*.pt
+
+# Footage and results stay local
+*.mp4
+*.avi
+*.mkv
+output/
+
+# Secrets
+.env
