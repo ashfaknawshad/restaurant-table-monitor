@@ -1,0 +1,105 @@
+source: sample video.mp4
+process_fps: 5.0
+detector:
+  model: yolo11m.pt
+  imgsz: 1280
+  confidence: 0.25
+  iou: 0.45
+  device: cpu
+  tiles: []
+  tile_imgsz: 960
+tracker:
+  lost_seconds: 3.0
+  activation: 0.3
+  match: 0.8
+rules:
+  anchor_y: 0.7
+  seat_seconds: 20.0
+  seated_max_speed: 0.25
+  leave_seconds: 8.0
+  empty_seconds: 60.0
+  service_margin_px: 30.0
+  service_seconds: 3.0
+  unattended_minutes: 5.0
+  reminder_minutes: 5.0
+staff:
+  track_ids: []
+  uniform_hsv_ranges: []
+  uniform_min_fraction: 0.45
+  uniform_min_samples: 5
+  staff_area_seconds: 4.0
+  tables_visited: 3
+  visit_window_seconds: 300.0
+alerts:
+  branch: Demo branch
+  camera: Hall cam 02
+  telegram: false
+  telegram_token_env: TELEGRAM_BOT_TOKEN
+  telegram_chat_env: TELEGRAM_CHAT_ID
+  snapshot_dir: output/alerts
+tables:
+  T1:
+    name: Back left
+    polygon:
+    - [222, 108]
+    - [342, 108]
+    - [348, 168]
+    - [218, 168]
+    color: [0, 255, 128]
+  T2:
+    name: Back centre
+    polygon:
+    - [350, 150]
+    - [480, 150]
+    - [490, 232]
+    - [345, 232]
+    color: [0, 200, 255]
+  T3:
+    name: Back right group
+    polygon:
+    - [520, 98]
+    - [656, 98]
+    - [662, 168]
+    - [515, 168]
+    color: [255, 128, 0]
+  T4:
+    name: Left window
+    polygon:
+    - [160, 188]
+    - [312, 188]
+    - [322, 310]
+    - [158, 310]
+    color: [200, 0, 255]
+  T5:
+    name: Centre right
+    polygon:
+    - [490, 172]
+    - [652, 172]
+    - [664, 300]
+    - [494, 300]
+    color: [0, 128, 255]
+  T6:
+    name: Centre large
+    polygon:
+    - [268, 238]
+    - [502, 238]
+    - [512, 400]
+    - [262, 400]
+    color: [128, 255, 0]
+  T7:
+    name: Front
+    polygon:
+    - [296, 402]
+    - [548, 402]
+    - [552, 479]
+    - [292, 479]
+    color: [255, 0, 128]
+staff_areas:
+  S1:
+    name: Behind the bar
+    polygon:
+    - [700, 150]
+    - [847, 150]
+    - [847, 430]
+    - [690, 430]
+    color: [255, 140, 0]
