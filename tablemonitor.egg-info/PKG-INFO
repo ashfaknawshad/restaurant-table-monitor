@@ -1,0 +1,142 @@
+Metadata-Version: 2.4
+Name: tablemonitor
+Version: 0.1.0
+Summary: Detects seated customers vs staff on restaurant CCTV and alerts when a table goes unattended.
+License: MIT
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: ultralytics>=8.3.0
+Requires-Dist: supervision<0.27,>=0.25
+Requires-Dist: opencv-python>=4.8
+Requires-Dist: numpy>=1.24
+Requires-Dist: shapely>=2.0
+Requires-Dist: pyyaml>=6.0
+Requires-Dist: requests>=2.28
+Provides-Extra: dev
+Requires-Dist: pytest>=7.0; extra == "dev"
+Dynamic: license-file
+
+# Restaurant Table Monitor
+
+Watches a restaurant's existing CCTV and alerts managers when an occupied table has gone
+too long without a staff visit. It also logs how long each table is occupied and how often
+staff attend it.
+
+- **Customers vs staff.** A person only counts as a customer once they actually *sit*:
+  inside a table zone, nearly still, with a seated body shape, for 20 s. Staff are recognised
+  by uniform colour (configurable per brand), time spent in staff-only areas such as behind
+  the bar, or stopping at several tables without sitting.
+- **Unattended alerts.** Each table runs its own state machine. When guests have waited
+  5 minutes (configurable) with no staff visit, a Telegram message with a snapshot goes to
+  the managers' group, followed by reminders and a "resolved" message when someone arrives.
+- **Robust to tracking glitches.** Timers live at table level, so a guest's tracking ID
+  changing behind a passing waiter doesn't reset the table.
+- **Zone editor.** Draw and drag table zones on the camera's own video, play the footage
+  underneath, and run the full pipeline from any frame before saving.
+
+## How it works
+
+```
+video / RTSP ─► YOLO11 person detection ─► ByteTrack IDs ─► people state ─► table state ─► alerts
+                (1280 px, optional tiling)                  (seated? staff?)  (timer)      (Telegram)
+```
+
+| Module | Role |
+|---|---|
+| `tablemonitor/perception.py` | YOLO detection (with optional tiled inference for far tables) and ByteTrack tracking |
+| `tablemonitor/people.py` | Per-person dwell, speed and posture; customer/staff role decisions |
+| `tablemonitor/tables.py` | Per-table `EMPTY → OCCUPIED` state machine, service visits and the unattended timer |
+| `tablemonitor/alerts.py` | Snapshots and Telegram Bot API delivery on a background thread |
+| `tablemonitor/editor.py` | Interactive zone editor with video playback and in-place testing |
+| `tablemonitor/pipeline.py` | Main loop, annotated video, `events.jsonl` and `summary.json` |
+| `configs/*.yaml` | One file per camera: zones, thresholds, staff rules, alert settings |
+
+## Setup
+
+```bash
+python -m venv venv
+venv\Scripts\activate            # Windows  (macOS/Linux: source venv/bin/activate)
+pip install -r requirements.txt
+```
+
+Model weights download automatically on first run. Put your camera footage next to the
+config (videos are git-ignored) and set `source:` in the config, or pass `--source`.
+
+## Usage
+
+**1. Draw the zones** for a camera. Table zones should cover the table *and its chairs*;
+add staff-only areas (bar, kitchen door, POS) with **B**.
+
+```bash
+python -m tablemonitor.editor --config configs/sample.yaml
+```
+
+| Mouse / key | Action |
+|---|---|
+| Drag corner / drag inside / click edge | Move a corner / move the zone / add a corner |
+| Right-click corner | Delete a corner |
+| N / B | New table zone / new staff-only area |
+| Space, `,` `.`, slider | Play, step and scrub the video |
+| Arrows, `[` `]` | Nudge, shrink/grow the selected zone |
+| T | Run the full pipeline from the current frame with unsaved zones |
+| U or Ctrl+Z / S / Q | Undo / save to the config / quit |
+
+**2. Run the monitor**
+
+```bash
+python -m tablemonitor.pipeline --config configs/sample.yaml --show
+python -m tablemonitor.pipeline --source rtsp://user:pass@nvr/stream1 --telegram
+python -m tablemonitor.pipeline --unattended-minutes 0.5     # demo the alert on a short clip
+```
+
+Outputs go to `output/`: `annotated.mp4`, `events.jsonl` (occupied / served / unattended /
+resolved / empty), `summary.json`, and alert snapshots.
+
+**3. Telegram alerts.** Create a bot with [@BotFather](https://t.me/BotFather), add it to the
+managers' group, then set the token and chat ID as environment variables (they are never
+stored in the config):
+
+```bash
+set TELEGRAM_BOT_TOKEN=123456:ABC...      # macOS/Linux: export TELEGRAM_BOT_TOKEN=...
+set TELEGRAM_CHAT_ID=-1001234567890
+```
+
+Then set `alerts.telegram: true` in the config or pass `--telegram`.
+
+## Configuration
+
+Key settings in `configs/*.yaml`:
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `rules.seat_seconds` | 20 | Time seated in a zone before someone counts as a customer |
+| `rules.unattended_minutes` | 5 | Wait without a staff visit before alerting |
+| `rules.reminder_minutes` | 5 | Repeat interval while still unattended |
+| `rules.service_seconds` | 3 | Time staff must stay at a table for it to count as a visit |
+| `rules.service_margin_px` | 30 | How far around a table zone staff can stand while serving |
+| `rules.empty_seconds` | 60 | No seated guest this long → table is empty |
+| `staff.uniform_hsv_ranges` | `[]` | HSV colour ranges of the uniform, e.g. black shirts `[[[0,0,0],[180,255,60]]]` |
+| `detector.model` / `imgsz` | `yolo11m.pt` / 1280 | Larger model and resolution find far-away guests |
+| `detector.tiles` | `[]` | Extra zoomed crops for distant tables (costs one model run each) |
+
+## Tests
+
+```bash
+pytest
+```
+
+The rule tests drive the people and table logic with synthetic tracks (sitting, walking past,
+standing at a table, staff visits, ID switches, reminders), so they run in under a second
+without a model or video.
+
+## Roadmap
+
+- Train a staff/guest classifier on each brand's uniforms to replace the colour rule
+- Pose-based sitting detection
+- "Table needs clearing" detection after guests leave
+- Multi-camera branches and a central dashboard
+
+## License
+
+MIT
