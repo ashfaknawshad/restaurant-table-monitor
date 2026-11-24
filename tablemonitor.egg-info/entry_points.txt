@@ -1,3 +1,0 @@
-[console_scripts]
-tablemonitor = tablemonitor.pipeline:main
-tablemonitor-zones = tablemonitor.editor:main

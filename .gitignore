@@ -16,3 +16,8 @@ output/
 
 # Secrets
 .env
+
+# Packaging build files
+*.egg-info/
+build/
+dist/
